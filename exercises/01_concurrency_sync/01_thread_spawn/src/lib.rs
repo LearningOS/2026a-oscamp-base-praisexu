@@ -325,4 +325,5 @@ mod tests {
         let result = handle_panic(100, true);
         assert_eq!(result, Err(()));
     }
+    
 }
