@@ -7,7 +7,7 @@
 //! - Async `send` and `recv`
 //! - Channel closing mechanism (receiver returns None after all senders are dropped)
 
-use tokio::sync::mpsc;
+use tokio::{net::ToSocketAddrs, sync::mpsc};
 
 /// Async producer-consumer:
 /// - Create a producer task that sends each element from items sequentially
@@ -19,7 +19,24 @@ pub async fn producer_consumer(items: Vec<String>) -> Vec<String> {
     // TODO: Spawn producer task: iterate through items, send each one
     // TODO: Spawn consumer task: loop recv until channel closes, collect results
     // TODO: Wait for consumer to complete and return results
-    todo!()
+    let (s,mut r) = mpsc::channel::<String>(items.len().max(1));
+    let mut res = vec![];
+    let _ = tokio::spawn(async move {
+        for item in items {
+            let _ = s.send(item).await;
+        }
+    }).await;
+    let h = tokio::spawn(async move {
+        loop {
+            match r.recv().await {
+                Some(item) => res.push(item),
+                None => break,
+            }
+        }
+        res
+    });
+
+    h.await.unwrap()
 }
 
 /// Fan‑in pattern: multiple producers, one consumer.
@@ -31,7 +48,31 @@ pub async fn fan_in(n_producers: usize) -> Vec<String> {
     //       Each sends format!("producer {id}: message")
     // TODO: Drop the original sender (important! otherwise channel won't close)
     // TODO: Consumer loops receiving, collects and sorts
-    todo!()
+    let (s, mut r) = mpsc::channel(n_producers);
+    let mut res = vec![];
+    let mut handles = vec![];
+    for i in 0..n_producers {
+        let cs = s.clone();
+        let h = tokio::spawn(async move {
+            let _ = cs.send(format!("producer {}: message", i)).await;
+        });
+        handles.push(h);
+    }
+    for h in handles {
+        h.await.unwrap();
+    }
+    drop(s);
+    let mut res = tokio::spawn(async move {
+        loop {
+            match r.recv().await {
+                Some(s) => res.push(s),
+                None => break,
+            }
+        }
+        res
+    }).await.unwrap();
+    res.sort();
+    res
 }
 
 #[cfg(test)]

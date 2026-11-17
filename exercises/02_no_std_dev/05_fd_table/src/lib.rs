@@ -51,13 +51,16 @@ pub struct FdTable {
     // TODO: Design the internal structure
     // Hint: use Vec<Option<Arc<dyn File>>>
     //       the index is the fd number, None means the fd is closed or unallocated
+    fds: Vec<Option<Arc<dyn File>>>
 }
 
 impl FdTable {
     /// Create an empty fd table
     pub fn new() -> Self {
         // TODO
-        todo!()
+        FdTable {
+            fds: vec![],
+        }
     }
 
     /// Allocate a new fd, return the fd number.
@@ -65,25 +68,53 @@ impl FdTable {
     /// Prefers reusing the smallest closed fd number; if no free slot, appends to the end.
     pub fn alloc(&mut self, file: Arc<dyn File>) -> usize {
         // TODO
-        todo!()
+        for i in 0..self.fds.len() {
+            if self.fds[i].is_none() {
+                self.fds[i] = Some(file);
+                return i; 
+            }
+        }
+        self.fds.push(Some(file));
+        return self.fds.len() - 1;
     }
 
     /// Get the file object for an fd. Returns None if the fd doesn't exist or is closed.
     pub fn get(&self, fd: usize) -> Option<Arc<dyn File>> {
+        if fd >= self.fds.len() {
+            return None;
+        }
         // TODO
-        todo!()
+        if let Some(f) = &self.fds[fd] {
+            return Some(f.clone());
+        } else {
+            return None;
+        }
     }
 
     /// Close an fd. Returns true on success, false if the fd doesn't exist or is already closed.
     pub fn close(&mut self, fd: usize) -> bool {
+        if fd >= self.fds.len() {
+            return false;
+        }
         // TODO
-        todo!()
+        if let Some(_) = &self.fds[fd] {
+            self.fds[fd] = None;
+            return true;
+        } else {
+            return false;
+        }
     }
 
     /// Return the number of currently allocated fds (excluding closed ones)
     pub fn count(&self) -> usize {
         // TODO
-        todo!()
+        let mut sz: usize = 0;
+        for i in 0..self.fds.len() {
+            if self.fds[i].is_some() {
+                sz += 1;
+            }
+        }
+        sz
     }
 }
 
